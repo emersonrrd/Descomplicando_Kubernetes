@@ -1,0 +1,19 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+runcmd:
+  - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  - ls -lha
+  - chmod +x kubectl
+  - ls -lha
+  - mv kubectl /usr/local/bin/
+  - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+  - chmod +x ./kind
+  - mv ./kind /usr/local/bin/kind
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - mkdir Descomplicando_Kubernetes
+  - sh get-docker.sh
+  - mkdir /root/Descomplicando_Kubernetes
+
+final_message: "Cloud-init script has completed."
