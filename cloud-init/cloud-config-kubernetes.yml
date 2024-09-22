@@ -147,6 +147,7 @@ write_files:
                 chown root:root /root/.kube/config
 
                 # Aplicar a rede do Weave Net
+                sleep 10
                 kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
 
                 echo "[K8S-SETUP] Cluster Kubernetes inicializado com sucesso!"
