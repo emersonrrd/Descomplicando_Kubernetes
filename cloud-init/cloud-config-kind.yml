@@ -2,18 +2,117 @@
 package_update: true
 package_upgrade: true
 
+write_files:
+  - path: /usr/local/bin/setup_kind.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+
+      # Variáveis globais
+      KUBECTL_BIN="/usr/local/bin/kubectl"
+      KIND_BIN="/usr/local/bin/kind"
+      DOCKER_SCRIPT="/root/get-docker.sh"
+      KIND_CLUSTER_CONFIG="/root/kind-cluster.yaml"
+      TAG="[KIND-SETUP]"
+
+      # Função para instalar o kubectl
+      instalar_kubectl() {
+          echo "$TAG Instalando kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mv kubectl "$KUBECTL_BIN"
+      }
+
+      # Função para instalar o Kind
+      instalar_kind() {
+          echo "$TAG Instalando Kind..."
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+          chmod +x ./kind
+          mv ./kind "$KIND_BIN"
+      }
+
+      # Função para instalar o Docker
+      instalar_docker() {
+          echo "$TAG Instalando Docker..."
+          curl -fsSL https://get.docker.com -o "$DOCKER_SCRIPT"
+          sh "$DOCKER_SCRIPT"
+      }
+
+      # Função para criar diretório de trabalho
+      criar_diretorio_trabalho() {
+          echo "$TAG Criando diretório de trabalho..."
+          mkdir -p /root/Descomplicando_Kubernetes
+      }
+
+      # Função para criar o arquivo de configuração do cluster Kind
+      criar_configuracao_kind() {
+          echo "$TAG Criando arquivo de configuração do Kind..."
+          cat <<EOF > "$KIND_CLUSTER_CONFIG"
+      kind: Cluster
+      apiVersion: kind.x-k8s.io/v1alpha4
+      nodes:
+        - role: control-plane
+        - role: worker
+        - role: worker
+      EOF
+      }
+
+      # Função para criar o cluster Kind
+      criar_cluster_kind() {
+          echo "$TAG Criando cluster Kind..."
+          kind create cluster --config "$KIND_CLUSTER_CONFIG" --name giropops
+
+          echo "$TAG Configurando kubeconfig para o usuário root..."
+          # Criar o diretório .kube, se não existir
+          mkdir -p /root/.kube
+          # Copiar o arquivo kubeconfig gerado pelo Kind
+          cp /root/.kube/config /root/.kube/config.bak 2>/dev/null || true
+          kind get kubeconfig --name giropops > /root/.kube/config
+      }
+
+      # Função para configurar o autocomplete do kubectl
+      configurar_autocomplete_kubectl() {
+          echo "$TAG Configurando autocomplete do kubectl..."
+          apt-get update
+          apt-get install -y bash-completion
+          mkdir -p /root/.kube
+          kubectl completion bash > /root/.kube/completion.bash.inc
+          echo "source '/root/.kube/completion.bash.inc'" >> /root/.bash_profile
+          source /root/.bash_profile
+      }
+
+      # Função para configurar alias para o kubectl
+      configurar_alias_kubectl() {
+          echo "$TAG Configurando alias para kubectl..."
+          echo "alias k='kubectl'" >> /root/.bash_profile
+          echo "source /root/.kube/completion.bash.inc" >> /root/.bash_profile
+          echo "complete -F __start_kubectl k" >> /root/.bash_profile
+          source /root/.bash_profile
+      }
+
+      # Função principal que chama todas as outras
+      main() {
+          echo "$TAG Iniciando configuração do ambiente Kind..."
+          instalar_kubectl
+          instalar_kind
+          instalar_docker
+          criar_diretorio_trabalho
+          criar_configuracao_kind
+          criar_cluster_kind
+          configurar_autocomplete_kubectl
+          configurar_alias_kubectl
+          echo "$TAG Configuração concluída com sucesso!"
+      }
+
+      # Chamar a função principal
+      main
+
 runcmd:
-  - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-  - ls -lha
-  - chmod +x kubectl
-  - ls -lha
-  - mv kubectl /usr/local/bin/
-  - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
-  - chmod +x ./kind
-  - mv ./kind /usr/local/bin/kind
-  - curl -fsSL https://get.docker.com -o get-docker.sh
-  - mkdir Descomplicando_Kubernetes
-  - sh get-docker.sh
-  - mkdir /root/Descomplicando_Kubernetes
+  - /usr/local/bin/setup_kind.sh
 
 final_message: "Cloud-init script has completed."
+
+# para consultor o log do cloud-init:
+# sudo cat /var/log/cloud-init-output.log
+# grep "\[KIND-SETUP\]" /var/log/cloud-init-output.log
